@@ -1,0 +1,233 @@
+// ****************************************************************************
+// BE3029 - Electronica Digital 2
+// Laboratorio No.4 (Laboratorio)
+// ****************************************************************************
+// Librerias
+// ****************************************************************************
+#include <Arduino.h>
+#include "driver/ledc.h"
+
+// ****************************************************************************
+
+// ****************************************************************************
+//Estados para el Switch case//
+// ****************************************************************************
+typedef enum estados {Rojo, Verde, Azul,} estados;
+estados estadoActual = Rojo;
+estados estadoFuturo = Rojo;
+
+
+// ****************************************************************************
+// Variables Globales
+// ****************************************************************************
+//Variables de los leds 
+const int ledRojo = 27;
+const int ledVerde= 4;
+const int ledAzul = 26;
+//Se definen lps Canales para los canales para los 3 PWM Generados 
+const int ledChannel1 = 0; // Canal PWM (0-15)
+const int ledChannel2 = 1; // Canal PWM (0-15)
+const int ledChannel3 = 2; // Canal PWM (0-15)
+const int resolucion = 10; // Resolución (0-15) Bits
+const int frecuencia = 50; //Frecuencia de 50 Hz
+//Se indica el donde inicia el ciclo de trabajo 
+// Estas Variables son generadas como Volatile, ya que van a cambiar durante todo el progrma, ya que estas almacenan el circlo de trabajo 
+//Se indica el donde inicia el ciclo de trabajo 
+volatile int dutycicleRojo = 0;
+volatile int dutycicleVerde = 0;
+volatile int dutycicleAzul = 0;
+
+
+
+//Se definen los intercalos de tiempo para generar los cambios de estado 
+const long interval = 2000;  // interval at which to blink (milliseconds)
+unsigned long previousMillis = 0;
+
+//Se definen los pines del botón de entrada 
+const int BotonB3 = 18;
+const int BotonB4 = 19;
+
+//Se definen los estados para verificar el estado del bóton y hacer el incremento o decremento del ciclo de trabajo para cambiar las posiciones 
+volatile bool Estado = true; 
+volatile bool Brillo = true;
+
+// ****************************************************************************
+// Prototipos de Funcion
+// ****************************************************************************
+
+
+
+// ****************************************************************************
+// ISR vectores de interrupciones
+// ****************************************************************************
+
+
+
+//Se definen los vectores de las interrupciones para los botones 
+
+//Estas interrupciones sirven para generar el aumento o decremento de los ciclos de trabajo al presionar los bótones B1, B2, B4
+//Se definen los vectores de las interrupciones para los botones 
+void IRAM_ATTR ISR_1() {
+  Estado = false;
+}
+
+void IRAM_ATTR ISR_2() {
+  Brillo = false;
+}
+
+
+// ****************************************************************************
+// Funcion setup (inicial)
+// ****************************************************************************
+void setup(){
+  // put your setup code here, to run once:
+  //Pines para cambiar la posicion del servomotor 
+  // Configurar los pines de los botones como entradas con resistencia de pull-up y que se active la interrupción cuando la señal esté en bajada. Se indica tambíen el vector de interrupción 
+  //Se configura el PIN B3 como un Pullup para cambiar de estado
+  //Se configura el B4 para generar el aumento de brillo de los Leds
+
+  pinMode(BotonB3, INPUT_PULLUP);
+  pinMode(BotonB4, INPUT_PULLUP);
+  attachInterrupt(BotonB4, ISR_2, FALLING);
+  Serial.begin(9600);
+
+
+//Se configuran las Salidas del PWM indicando la resolución, frecuencia y el canal, los cuales fueron definidos en las variables golbales 
+//ledChannel1- PWM para el Led Rojo
+//ledChannel2- PWM para el Led Verde
+//ledChannel3- PWM para el Led Azul
+//Configuración de los PWM 
+ledcSetup(ledChannel1, frecuencia, resolucion);
+// attach the channel to the GPIO to be controlled (Especificar en la señal en la que va a salir el PWM)
+ledcAttachPin(ledRojo, ledChannel1);
+
+//Configuración de los PWM 
+ledcSetup(ledChannel2, frecuencia, resolucion);
+// attach the channel to the GPIO to be controlled (Especificar en la señal en la que va a salir el PWM)
+ledcAttachPin(ledVerde, ledChannel2);
+
+//Configuración de los PWM 
+ledcSetup(ledChannel3, frecuencia, resolucion);
+// attach the channel to the GPIO to be controlled (Especificar en la señal en la que va a salir el PWM)
+ledcAttachPin(ledAzul, ledChannel3);
+
+
+}
+
+
+
+
+// ****************************************************************************
+// Loop principal
+// ****************************************************************************
+void loop(){
+
+bool botB3 = digitalRead(BotonB3);
+  // transiciones de estado Según la Rutina indicada para el Bóton B3
+ 
+
+  // transiciones de estado
+  switch (estadoActual){
+    case Rojo: 
+      if(botB3 == LOW){
+        estadoFuturo = Verde;}
+      else{
+        estadoFuturo = Rojo;
+        }
+      break;
+    case Verde:
+       if(botB3 == LOW){
+        estadoFuturo = Azul;
+        Estado = true;}
+      else{
+        estadoFuturo = Verde;}
+    Estado = true;
+      break;
+    case Azul:
+       if(botB3 == LOW){
+        estadoFuturo = Rojo;}
+       else{
+        estadoFuturo = Azul;}
+      Estado = true;
+       break;
+
+  }
+
+  // Salidas
+  switch (estadoActual){
+//Se establece que al presionar el bóton B4 se aumenta el brillo del Led Rojo y los otros se mantienen igual 
+    
+    case Rojo: // Rojo
+    Serial.print("Estado Rojo");
+    if (!Brillo) {
+    dutycicleRojo = dutycicleRojo + 25;
+      if (dutycicleRojo  > 250) {   
+        dutycicleRojo = 0; 
+        }
+    else{   
+        dutycicleRojo = dutycicleRojo; 
+        }
+    delay(200);
+    Brillo = true;
+    }
+      break;
+
+//Se establece que al presionar el bóton B4 se aumenta el brillo del Led verde y los otros se mantienen igual 
+    
+
+    case Verde: // Verde
+    Serial.print("Estado Verde");
+    if (!Brillo) {
+    dutycicleVerde = dutycicleVerde + 25;
+      if (dutycicleVerde  > 250) {   
+        dutycicleVerde = 0; 
+        }
+    else{   
+        dutycicleVerde = dutycicleVerde; 
+        }
+    delay(200);
+    Brillo = true;
+    }
+      break;
+
+//Se establece que al presionar el bóton B4 se aumenta el brillo del Led Azul y los otros se mantienen igual 
+    case Azul: // Azul
+    Serial.print("Cambio Estado Azul");
+    if (!Brillo) {
+    dutycicleAzul = dutycicleAzul + 25;
+      if (dutycicleAzul  > 250) {   
+        dutycicleAzul = 0; 
+        }
+    else{   
+        dutycicleAzul = dutycicleAzul; 
+        }
+    delay(200);
+    Brillo = true;
+    }
+
+      break;
+  }
+
+  // actualización de estado
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    estadoActual = estadoFuturo;
+    previousMillis = currentMillis;
+  }
+
+  // changing the duty cycle of the PWM del Led Rojo
+ledcWrite(ledChannel1, dutycicleRojo);
+// changing the duty cycle of the PWM del Led Verde
+ledcWrite(ledChannel2, dutycicleVerde);
+// changing the duty cycle of the PWM del Led Azul
+ledcWrite(ledChannel3, dutycicleAzul);
+
+//Se establece Delay para evitar que el programa tenga difiultad de salir y entrar al Void loop 
+ 
+  delay(1);
+
+}
+
+// ****************************************************************************
+// Otras funciones
+// ****************************************************************************
